@@ -1,6 +1,7 @@
 import './globals.css';
 import { ReactNode } from 'react';
 import { SessionWrapper } from './session-wrapper';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'Smart Task Manager',
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <SessionWrapper>
           {children}
+          <Toaster position="top-right" reverseOrder={false} />
         </SessionWrapper>
       </body>
     </html>

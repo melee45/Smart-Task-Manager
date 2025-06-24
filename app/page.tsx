@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import toast from 'react-hot-toast';
+import TaskList from './components/TaskList';
 
 type Task = {
   id: string;
@@ -16,9 +18,6 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDesc, setEditDesc] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
 
   useEffect(() => {
@@ -30,65 +29,78 @@ export default function Home() {
       const res = await fetch('/api/tasks');
       const data: Task[] = await res.json();
       setTasks(data);
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
+    } catch {
+      toast.error('Failed to fetch tasks');
     }
   };
 
   const createTask = async () => {
     if (!newTitle.trim()) return;
 
-    await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTitle, description: newDesc }),
-    });
+    try {
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle, description: newDesc }),
+      });
 
-    setNewTitle('');
-    setNewDesc('');
-    fetchTasks();
+      toast.success('Task created!');
+      setNewTitle('');
+      setNewDesc('');
+      fetchTasks();
+    } catch {
+      toast.error('Failed to create task');
+    }
   };
 
   const deleteTask = async (id: string) => {
-    await fetch(`/api/tasks/${id}`, {
-      method: 'DELETE',
-    });
-    fetchTasks();
+    try {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+      });
+
+      toast.success('Task deleted');
+      fetchTasks();
+    } catch {
+      toast.error('Failed to delete task');
+    }
   };
 
   const toggleCompletion = async (id: string, completed: boolean) => {
-    await fetch(`/api/tasks/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completed: !completed }),
-    });
-    fetchTasks();
+    try {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !completed }),
+      });
+
+      toast.success(`Marked as ${!completed ? 'completed' : 'incomplete'}`);
+      fetchTasks();
+    } catch {
+      toast.error('Failed to update status');
+    }
   };
 
-  const startEditing = (task: Task) => {
-    setEditingId(task.id);
-    setEditTitle(task.title);
-    setEditDesc(task.description || '');
+  const updateTask = async (id: string, title: string, description: string) => {
+    try {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      });
+
+      toast.success('Task updated');
+      fetchTasks();
+    } catch {
+      toast.error('Failed to update task');
+    }
   };
 
-  const cancelEditing = () => {
-    setEditingId(null);
-    setEditTitle('');
-    setEditDesc('');
-  };
-
-  const saveEdit = async () => {
-    if (!editTitle.trim() || !editingId) return;
-
-    await fetch(`/api/tasks/${editingId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: editTitle, description: editDesc }),
-    });
-
-    cancelEditing();
-    fetchTasks();
-  };
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === 'active') return !task.completed;
+    if (filter === 'completed') return task.completed;
+    return true;
+  });
 
   if (!session) {
     return (
@@ -147,80 +159,12 @@ export default function Home() {
           </button>
         </div>
 
-        <ul className="space-y-4">
-          {tasks.map((task) => (
-            <li key={task.id} className="border p-4 rounded shadow-sm bg-gray-50">
-              {editingId === task.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full border p-2 rounded mb-2"
-                  />
-                  <input
-                    type="text"
-                    value={editDesc}
-                    onChange={(e) => setEditDesc(e.target.value)}
-                    className="w-full border p-2 rounded mb-2"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={saveEdit}
-                      className="bg-green-600 text-white px-4 py-1 rounded"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={cancelEditing}
-                      className="bg-gray-300 px-4 py-1 rounded"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => toggleCompletion(task.id, !task.completed)}
-                      className="w-4 h-4"
-                    />
-                    <h2
-                      className={`text-lg font-semibold ${
-                        task.completed ? 'line-through text-gray-500' : ''
-                      }`}
-                    >
-                      {task.title}
-                    </h2>
-                  </div>
-                  {task.description && (
-                    <p className="text-gray-600 mt-1">{task.description}</p>
-                  )}
-                  <p className="text-sm text-gray-400 mt-2">
-                    Created: {new Date(task.createdAt).toLocaleString()}
-                  </p>
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => startEditing(task)}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      className="bg-red-600 text-white px-3 py-1 rounded"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+        <TaskList
+          tasks={filteredTasks}
+          onToggle={toggleCompletion}
+          onDelete={deleteTask}
+          onSave={updateTask}
+        />
       </div>
     </main>
   );
