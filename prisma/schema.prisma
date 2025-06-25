@@ -9,15 +9,12 @@ datasource db {
 
 model User {
   id            String    @id @default(cuid())
-  name          String?
   email         String?   @unique
+  name          String?
   emailVerified DateTime?
   image         String?
-
   accounts      Account[]
   sessions      Session[]
-
-  // Add this if you're storing tasks per user later
   tasks         Task[]
 }
 
@@ -26,26 +23,25 @@ model Task {
   title       String
   description String?
   completed   Boolean  @default(false)
-  createdAt   DateTime @default(now())
   userId      String?
+  createdAt   DateTime @default(now())
   user        User?    @relation(fields: [userId], references: [id])
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? 
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
